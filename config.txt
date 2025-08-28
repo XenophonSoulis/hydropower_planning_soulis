@@ -1,0 +1,22 @@
+density_gravity:9.8
+cell_length:
+closed_price:
+open_price:
+wanted_cases:
+minimum_power:
+use_open_price_raster:
+use_no_pass_raster:
+reach_raster:
+flow_direction_raster:
+dem_raster:
+flow_accumulation_raster:
+print_results_raster:
+flowrate_raster:
+cost_raster:
+ban_raster:
+END
+
+"""In use_open_price_raster, use 0 for False or 1 for True
+If use_open_price_raster is set to 1, the open_price setting is irrelevant
+If use_open_price_raster is set to 0, the cost_raster setting is irrelevant
+If use_no_pass_raster is set to 0, the ban_raster setting is irrelevant"""
