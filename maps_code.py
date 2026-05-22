@@ -1,16 +1,14 @@
-def make_map_1(b,v1=100,v2=150,v3=200,v4=100,data=iodata,coords=None):
+def make_map_1(b,v1=100,v2=150,v3=200,data=iodata,coords=None):
     '''Create map that shows all points with the same height as the starting point.
     b is the index of the starting point in data.stream_pixels_list.
     v1 and v2 are the values used for the intensity of the map:
     v1 for the same-height points.
     v2 for the stream points.
     v3 for the upstream point.
-    v4 for problematic points.
     If coords!=None, the map also includes a crosshair centered at the specified point.
     coords is a tuple that includes the coordinates of the specified point and optionally the intensity of the crosshair.'''
     start = time.time()
     y=set()
-    z=set()
     if coords:
         if len(coords)<2 or len(coords)>3:
             raise ValueError('incorrect coordinate tuple')
@@ -21,21 +19,17 @@ def make_map_1(b,v1=100,v2=150,v3=200,v4=100,data=iodata,coords=None):
         z1,z2,vcross=coords
         for i in data.stream_pixels_list:
             y.add((i[1],i[2]))
-            if bval in data.problems:
-                z.add((i[1],i[2]))
         for i in range(data.rows):
             for j in range(data.cols):
-                data.results_block.setValue(i, j, 0.5*(v1*int((i,j) in data.list_iso[b])+v2*int((i,j) in y)+v3*int(bval==b))+v4*((i,j) in z)+vcross*(i==z1)+vcross*(j==z2))
+                data.results_block.setValue(i, j, 0.5*(v1*int((i,j) in data.list_iso[b])+v2*int((i,j) in y)+v3*int(bval==b))+vcross*(i==z1)+vcross*(j==z2))
     else:
         for bval,i in enumerate(data.stream_pixels_list):
             y.add((i[1],i[2]))
-            if bval in data.problems:
-                z.add((i[1],i[2]))
             if bval==b:
                 bco=(i[1],i[2])
         for i in range(data.rows):
             for j in range(data.cols):
-                data.results_block.setValue(i, j, v1*int((i,j) in data.list_iso[b])+v2*int((i,j) in y)+v3*int(bco==(i,j))+v4*((i,j) in z))
+                data.results_block.setValue(i, j, v1*int((i,j) in data.list_iso[b])+v2*int((i,j) in y)+v3*int(bco==(i,j)))
     data.provider_results.setEditable(True)
     data.provider_results.writeBlock(data.results_block, 1, 0, 0)
     data.provider_results.setEditable(False)
@@ -133,8 +127,9 @@ def make_map_3(b,v1=150,v2=20,v3=0.085,data=iodata,coords=None):
     end = time.time()
     logprint('Time to complete map:',end - start)
 
-def make_map_4(data=iodata,coords=None):
+def make_map_4(n = 1, data=iodata,coords=None):
     '''Create map that shows the lowest point of the stream that's higher than each pixel.
+    n is the number of consecutive stream cells that correspond to the same color.
     If coords!=None, the map also includes a crosshair centered at the specified point.
     coords is a tuple that includes the coordinates of the specified point and optionally the intensity of the crosshair.'''
     start = time.time()
@@ -148,11 +143,21 @@ def make_map_4(data=iodata,coords=None):
         z1,z2,vcross=coords
         for i in range(data.rows):
             for j in range(data.cols):
-                data.results_block.setValue(i, j, 0.5*data.min_iso[i,j]+vcross*(i==z1)+vcross*(j==z2))
+                if data.min_iso[i,j] == -2:
+                    data.results_block.setValue(i, j, -1+vcross*(i==z1)+vcross*(j==z2))
+                elif data.min_iso[i,j] == -1:
+                    data.results_block.setValue(i, j, -0.5+vcross*(i==z1)+vcross*(j==z2))
+                else:
+                    data.results_block.setValue(i, j, 0.5*data.min_iso[i,j]//n*n+vcross*(i==z1)+vcross*(j==z2))
     else:
         for i in range(data.rows):
             for j in range(data.cols):
-                data.results_block.setValue(i, j, data.min_iso[i,j])
+                if data.min_iso[i,j] == -2:
+                    data.results_block.setValue(i, j, -2)
+                elif data.min_iso[i,j] == -1:
+                    data.results_block.setValue(i, j, -1)
+                else:
+                    data.results_block.setValue(i, j, data.min_iso[i,j]//n*n)
     data.provider_results.setEditable(True)
     data.provider_results.writeBlock(data.results_block, 1, 0, 0)
     data.provider_results.setEditable(False)
@@ -219,11 +224,11 @@ def make_map_6(quality_number=0,acc=1,v1=100,v2=50,v3=80,v4=80,data=iodata,coord
     If coords!=None, the map also includes a crosshair centered at the specified point.
     coords is a tuple that includes the coordinates of the specified point and optionally the intensity of the crosshair.'''
     start = time.time()
-    point=data.price_list[quality_number]
+    point=data.accurate_price_list[quality_number]
     i,j,k,side=point[4:8]
     iso_path=(data.leftisos,data.rightisos)[side][i][:k]
     iso_set=set(data.leftisos[i])|set(data.rightisos[i])
-    if (closed:=tuple(data.price_list[quality_number][-3]))==():
+    if (closed:=tuple(data.accurate_price_list[quality_number][-3]))==():
         closed=path_from_price_list(quality_number,1,data)
     if acc>1:
         closed2=set()

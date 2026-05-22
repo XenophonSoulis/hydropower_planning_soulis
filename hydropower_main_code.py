@@ -6,13 +6,15 @@ import time
 import json
 import openpyxl
 import os
+import dijkstar
+import heapq
 
 #TIME MEASUREMENT
 
 start=time.time()
 
 #END TIME MEASUREMENT
-address=r''
+address=r'C:\Works\paper_hydropower_XKS\1temp-hydropower'
 def logprint(*mess,sep=' ',end='\n'):
     print(*mess)
     try:
@@ -31,66 +33,86 @@ def reset_input_file():
 Useful if the file is missing or corrupted.'''
     with open(f'{address}\\config.txt','w') as config:
         config.write('density_gravity:9.8\n')
-        config.write('cell_length:\n')
-        config.write('closed_price:\n')
-        config.write('open_price:\n')
-        config.write('wanted_cases:\n')
-        config.write('minimum_power:\n')
-        config.write('use_open_price_raster:\n')
-        config.write('use_no_pass_raster:\n')
-        config.write('reach_raster:\n')
-        config.write('flow_direction_raster:\n')
-        config.write('dem_raster:\n')
-        config.write('flow_accumulation_raster:\n')
-        config.write('print_results_raster:\n')
-        config.write('flowrate_raster:\n')
-        config.write('cost_raster:\n')
-        config.write('ban_raster:\n')
+        config.write('cell_length:5\n')
+        config.write('open_price:1\n')
+        config.write('closed_price:2\n')
+        config.write('wanted_cases:10000\n')
+        config.write('minimum_power:10\n')
+        config.write('maximum_upstream_downstream_distance:-1\n') #in metres, -1 to turn off
+        config.write('losses:0\n') #0-100, percentage loss per metre of open
+        config.write('use_open_price_raster:1\n')
+        config.write('use_closed_price_raster:0\n')
+        config.write('use_no_pass_raster:1\n')
+        config.write('reach_raster:stream_reach4\n')
+        config.write('flow_direction_raster:Flow_Direction\n')
+        config.write('dem_raster:Fill_DEM\n')
+        config.write('flow_accumulation_raster:Flow_accumulation\n')
+        config.write('print_results_raster:steam_reach4_results\n')
+        config.write('flowrate_raster:flowrate\n')
+        config.write('open_price_raster:cost_fin\n')
+        config.write('closed_price_raster:closed_cost\n')
+        config.write('ban_raster:no_pass\n')
         config.write('END\n\n')
-        config.write('"""In use_open_price_raster, use 0 for False or 1 for True\n')
-        config.write('If use_open_price_raster is set to 1, the open_price setting is irrelevant\n')
-        config.write('If use_open_price_raster is set to 0, the cost_raster setting is irrelevant\n')
-        config.write('If use_no_pass_raster is set to 0, the ban_raster setting is irrelevant"""\n')
+        config.write('"""\n')
+        config.write('    If use_open_price_raster is set to 0, the open_price_raster setting is irrelevant\n')
+        config.write('    If use_open_price_raster is set to 1, the open_price setting is irrelevant\n')
+        config.write('    If use_closed_price_raster is set to 0, the closed_price_raster setting is irrelevant\n')
+        config.write('    If use_closed_price_raster is set to 1, the closed_price setting is still used in Step 6 (estimation of penstock price)\n')
+        config.write('    Set closed_price equal to -1 in order to use the average of closed_price_raster as closed_price\n')
+        config.write('    If use_no_pass_raster is set to 0, the ban_raster setting is irrelevant\n')
+        config.write('    If maximum_upstream_downstream_distance is set to -1, ignore this setting\n')
+        config.write('    Losses is a number from 0 to 1. It refers to the energy loss per meter of headrace.\n')
+        config.write('"""\n')
 def write_input_file(*inputs):
     '''Edits the input 'config.txt file to the provided values,
 while keeping the existing values for the rest.
 For a friendlier interface, check change_settings.
 Accepts up to 15 inputs.'''
     inputs=list(inputs)
-    if len(inputs)>15:
+    if len(inputs)>17:
         raise IndexError('too many config initializers')
-    if len(inputs)<15:
-        inputs.extend([None]*(15-len(inputs)))
+    if len(inputs)<17:
+        inputs.extend([None]*(17-len(inputs)))
     if None in inputs:
         old_config=read_input()
-        for i in range(15):
+        for i in range(17):
             if inputs[i]==None:
                 inputs[i]=old_config[i]
     with open(f'{address}\\config.txt','w') as config:
         config.write(f'density_gravity:{inputs[0]}\n')
         config.write(f'cell_length:{inputs[1]}\n')
-        config.write(f'closed_price:{inputs[2]}\n')
-        config.write(f'open_price:{inputs[3]}\n')
+        config.write(f'open_price:{inputs[2]}\n')
+        config.write(f'closed_price:{inputs[3]}\n')
         config.write(f'wanted_cases:{inputs[4]}\n')
         config.write(f'minimum_power:{inputs[5]}\n')
-        config.write(f'use_open_price_raster:{int(inputs[6])}\n')
-        config.write(f'use_no_pass_raster:{int(inputs[7])}\n')
-        config.write(f'reach_raster:{inputs[8]}\n')
-        config.write(f'flow_direction_raster:{inputs[9]}\n')
-        config.write(f'dem_raster:{inputs[10]}\n')
-        config.write(f'flow_accumulation_raster:{inputs[11]}\n')
-        config.write(f'print_results_raster:{inputs[12]}\n')
-        config.write(f'flowrate_raster:{inputs[13]}\n')
-        config.write(f'cost_raster:{inputs[14]}\n')
-        config.write(f'ban_raster:{inputs[15]}\n')
+        config.write(f'maximum_upstream_downstream_distance:{int(inputs[6])}\n')
+        config.write(f'losses:{int(inputs[7])}\n')
+        config.write(f'use_open_price_raster:{int(inputs[8])}\n')
+        config.write(f'use_closed_price_raster:{int(inputs[9])}\n')
+        config.write(f'use_no_pass_raster:{int(inputs[10])}\n')
+        config.write(f'reach_raster:{inputs[11]}\n')
+        config.write(f'flow_direction_raster:{inputs[12]}\n')
+        config.write(f'dem_raster:{inputs[13]}\n')
+        config.write(f'flow_accumulation_raster:{inputs[14]}\n')
+        config.write(f'print_results_raster:{inputs[15]}\n')
+        config.write(f'flowrate_raster:{inputs[16]}\n')
+        config.write(f'open_price_raster:{inputs[17]}\n')
+        config.write(f'closed_price_raster:{inputs[18]}\n')
+        config.write(f'ban_raster:{inputs[19]}\n')
         config.write('END\n\n')
-        config.write('"""In use_open_price_raster, use 0 for False or 1 for True\n')
-        config.write('If use_open_price_raster is set to 1, the open_price setting is irrelevant\n')
-        config.write('If use_open_price_raster is set to 0, the cost_raster setting is irrelevant\n')
-        config.write('If use_no_pass_raster is set to 0, the ban_raster setting is irrelevant"""\n')
+        config.write('"""\n')
+        config.write('    If use_open_price_raster is set to 0, the open_price_raster setting is irrelevant\n')
+        config.write('    If use_open_price_raster is set to 1, the open_price setting is irrelevant\n')
+        config.write('    If use_closed_price_raster is set to 0, the closed_price_raster setting is irrelevant\n')
+        config.write('    If use_closed_price_raster is set to 1, the closed_price setting is still used in Step 6 (estimation of penstock price)\n')
+        config.write('    Set closed_price equal to -1 in order to use the average of closed_price_raster as closed_price\n')
+        config.write('    If use_no_pass_raster is set to 0, the ban_raster setting is irrelevant\n')
+        config.write('    If maximum_upstream_downstream_distance is set to -1, ignore this setting\n')
+        config.write('    Losses is a number from 0 to 100. It refers to the energy loss per meter of penstock.\n')
+        config.write('"""\n')
 
 #Uncomment the line below to reset the input file in case it is missing or corrupted:
-#reset_input_file()
+reset_input_file()
 
 def read_input():
     '''Reads the input 'config.txt' file'''
@@ -103,7 +125,7 @@ def read_input():
         float_read_config=lambda:float(config.readline()[:-1].split(sep=':')[1])
         bool_read_config=lambda:bool(int(config.readline()[:-1].split(sep=':')[1]))
         str_read_config=lambda:config.readline()[:-1].split(sep=':')[1]
-        return float_read_config(),float_read_config(),float_read_config(),float_read_config(),int_read_config(),float_read_config(),bool_read_config(),bool_read_config(),str_read_config(),str_read_config(),str_read_config(),str_read_config(),str_read_config(),str_read_config(),str_read_config(),str_read_config()
+        return float_read_config(),float_read_config(),float_read_config(),float_read_config(),int_read_config(),float_read_config(),int_read_config(),float_read_config(),bool_read_config(),bool_read_config(),bool_read_config(),str_read_config(),str_read_config(),str_read_config(),str_read_config(),str_read_config(),str_read_config(),str_read_config(),str_read_config(),str_read_config()
 
 #Only used for reference. These are the values in each element of price_list.
 price_list_key=['cost per height','total cost','cost of open duct','cost of closed pipe','upstream point index in stream_pixels_list','downstream point index in stream_pixels_list','contour point in the relevant contour','left/right identifier','x coordinate of upstream point','y coordinate of upstream point','x coordinate of downstream point','y coordinate of downstream point','x coordinate of contour point','y coordinate of contour point','final_price']
@@ -114,14 +136,17 @@ A raster_data object called iodata is created by default
 with values imported from 'config.txt'.
 The arguments are the entries of 'config.txt'
 in the same order that they are there.'''
-    def __init__(self,density_gravity,cell_length,closed_price,open_price,wanted_cases,minimum_power,use_open_price_raster,use_no_pass_raster,reach_raster,fldir_raster,dem_raster,flacc_raster,results_raster,flowrate_raster,cost_raster,ban_raster):
+    def __init__(self,density_gravity,cell_length,open_price,closed_price,wanted_cases,minimum_power,maximum_distance,losses,use_open_price_raster,use_closed_price_raster,use_no_pass_raster,reach_raster,fldir_raster,dem_raster,flacc_raster,results_raster,flowrate_raster,open_price_raster,closed_price_raster,ban_raster):
         self.density_gravity=density_gravity
         self.cell_length=cell_length
-        self.closed_price=closed_price
         self.open_price=open_price
+        self.closed_price=closed_price
         self.wanted_cases=wanted_cases
         self.minimum_power=minimum_power
+        self.maximum_distance=maximum_distance
+        self.losses=(100-losses)/100
         self.use_open_price_raster=use_open_price_raster
+        self.use_closed_price_raster=use_closed_price_raster
         self.use_no_pass_raster=use_no_pass_raster
         self.run_parts=[False]*7
         self.reach_layer = QgsProject.instance().mapLayersByName(reach_raster)[0]
@@ -131,7 +156,9 @@ in the same order that they are there.'''
         self.results_layer = QgsProject.instance().mapLayersByName(results_raster)[0]
         self.flowrate_layer = QgsProject.instance().mapLayersByName(flowrate_raster)[0]
         if self.use_open_price_raster:
-            self.cost_layer = QgsProject.instance().mapLayersByName(cost_raster)[0]
+            self.open_price_layer = QgsProject.instance().mapLayersByName(open_price_raster)[0]
+        if self.use_closed_price_raster:
+            self.closed_price_layer = QgsProject.instance().mapLayersByName(closed_price_raster)[0]
         if self.use_no_pass_raster:
             self.ban_layer = QgsProject.instance().mapLayersByName(ban_raster)[0]
         self.provider_reach = self.reach_layer.dataProvider()
@@ -141,7 +168,9 @@ in the same order that they are there.'''
         self.provider_results = self.results_layer.dataProvider()
         self.provider_flowrate = self.flowrate_layer.dataProvider()
         if self.use_open_price_raster:
-            self.provider_cost = self.cost_layer.dataProvider()
+            self.provider_open_price = self.open_price_layer.dataProvider()
+        if self.use_closed_price_raster:
+            self.provider_closed_price = self.closed_price_layer.dataProvider()
         if self.use_no_pass_raster:
             self.provider_ban = self.ban_layer.dataProvider()
         self.extent = self.provider_reach.extent()
@@ -155,10 +184,15 @@ in the same order that they are there.'''
         self.results_block = self.provider_results.block(1, self.extent, self.cols, self.rows)
         self.flowrate_block = self.provider_flowrate.block(1, self.extent, self.cols, self.rows)
         if self.use_open_price_raster:
-            self.cost_block = self.provider_cost.block(1, self.extent, self.cols, self.rows)
+            self.open_price_block = self.provider_open_price.block(1, self.extent, self.cols, self.rows)
+        if self.use_closed_price_raster:
+            self.closed_price_block = self.provider_closed_price.block(1, self.extent, self.cols, self.rows)
         if self.use_no_pass_raster:
             self.ban_block = self.provider_ban.block(1, self.extent, self.cols, self.rows)
-        self.reach_array,self.flowdir_array,self.FlDEM_array,self.FlowAcc_array,self.flowrate_array,self.cost_array,self.ban_array,self.log_flow_direction,self.ban_set,self.min_iso,self.to_check=self.block_array_maker()
+        self.reach_array,self.flowdir_array,self.FlDEM_array,self.FlowAcc_array,self.flowrate_array,self.open_price_array,self.closed_price_array,self.ban_array,self.log_flow_direction,self.ban_set,self.min_iso,self.to_check=self.block_array_maker()
+        if self.closed_price==-1:
+            self.closed_price=np.mean(self.closed_price_array[self.closed_price_array>-999999])
+        self.make_graph()
         self.stream_pixels_list,self.stream_list=self.make_stream_pixels_list()
         self.non_basin=set()
         self.problems=self.problematic_points()
@@ -176,7 +210,7 @@ in the same order that they are there.'''
         self.right_all_costs_open_list={}
         self.left_max=0
         self.right_max=0
-        self.distances=np.array(0)
+        self.distances=np.array(0,dtype=np.float16)
         self.price_list=[]
     def block_array_maker(self):
         '''Creates arrays for all the data blocks from the raster,
@@ -186,7 +220,8 @@ as well as some other helper arrays.'''
         FlDEM_array=np.zeros((self.rows,self.cols))
         FlowAcc_array=np.zeros((self.rows,self.cols))
         flowrate_array=np.zeros((self.rows,self.cols))
-        cost_array=np.zeros((self.rows,self.cols))
+        open_price_array=np.zeros((self.rows,self.cols))
+        closed_price_array=np.zeros((self.rows,self.cols))
         ban_array=np.zeros((self.rows,self.cols))
         log_flow_direction=-np.ones((self.rows,self.cols))
         ban_set=set()
@@ -198,27 +233,33 @@ as well as some other helper arrays.'''
                 g=self.FlDEM_block.value(i,j)
                 if self.use_no_pass_raster:
                     h=self.ban_block.value(i,j)
+                if self.use_closed_price_raster:
+                    k=self.closed_price_block.value(i,j)
                 reach_array[i,j]=self.reach_block.value(i,j)
                 flowdir_array[i,j]=f
                 FlDEM_array[i,j]=g
                 FlowAcc_array[i,j]=self.FlowAcc_block.value(i,j)
                 flowrate_array[i,j]=self.flowrate_block.value(i,j)
                 if self.use_open_price_raster:
-                    cost_array[i,j]=self.cost_block.value(i,j)
+                    open_price_array[i,j]=self.open_price_block.value(i,j)
                 else:
-                    cost_array[i,j]=self.open_price
+                    open_price_array[i,j]=self.open_price
+                if self.use_closed_price_raster:
+                    closed_price_array[i,j]=k
+                else:
+                    closed_price_array[i,j]=self.closed_price
                 if self.use_no_pass_raster:
                     ban_array[i,j]=h
                     if not h:
                         ban_set.add((i,j))
                 else:
                     ban_array[i,j]=1
-                h=(g>=-9999)
+                h=(g>=-999999)
                 if h:
                     log_flow_direction[i,j]=custom_log2[f]
                 min_iso[i,j]=-2+h
                 to_check[i,j]=h
-        return reach_array,flowdir_array,FlDEM_array,FlowAcc_array,flowrate_array,cost_array,ban_array,log_flow_direction,ban_set,min_iso,to_check
+        return reach_array,flowdir_array,FlDEM_array,FlowAcc_array,flowrate_array,open_price_array,closed_price_array,ban_array,log_flow_direction,ban_set,min_iso,to_check
     def make_stream_pixels_list(self):
         '''Makes stream_pixels_list, a list containing the
 flowacc, x-coord, y-coord, flowdir and dem of each point of the stream,
@@ -281,6 +322,8 @@ on step 6, when speed matters the most.'''
     def short_price_list(self):
         '''Shortens the price_list to avoid eating up too much RAM.'''
         self.price_list=self.price_list[:2*self.wanted_cases]
+    def partition_price_list(self):
+        self.price_list=heapq.nsmallest(2*self.wanted_cases, self.price_list)
     def sort_accurate_price_list(self):
         '''Sorts the first 2*self.wanted_cases elements of the price_list
 into a new accurate_price_list based on the traced closed pipe.'''
@@ -335,6 +378,20 @@ M for Maximum, m for minimum.'''
         return problems
     def reduce_list_iso(self):
         del self.list_iso[-1]
+    def make_graph(self):
+        start=time.time()
+        self.graph=dijkstar.Graph()
+        for i in range(self.rows):
+            for j in range(self.cols):
+                c=(i,j)
+                if self.FlDEM_array[c]>-999999 and c not in self.ban_set:
+                    self.graph.add_node(c)
+                    for k in adj_cells(i,j,self.rows,self.cols):
+                        if self.FlDEM_array[k]>-999999 and c not in self.ban_set:
+                            d=eucl_dist(self.cell_length*abs(c[0]-k[0]),self.cell_length*abs(c[1]-k[1]),abs(self.FlDEM_array[c]-self.FlDEM_array[k]))/2
+                            self.graph.add_edge(c,k,d*(self.closed_price_array[c]+self.closed_price_array[k]))
+        end=time.time()
+        logprint('Time to complete transformation of raster to graph: ',end-start)
     def make_basin(self):
         for i in range(self.rows):
             for j in range(self.cols):
@@ -380,6 +437,18 @@ arr_row and arr_col as given by raster_data.rows and raster_data.cols'''
         if i[0]>=0 and i[0]<arr_row and i[1]>=0 and i[1]<arr_col:
             z.append(i)
     return z
+
+def eucl_dist(dx,dy,dz):
+    return math.sqrt(dx**2+dy**2+dz**2)
+def neighbor_dist(p,q):
+    dx=abs(p[0]-q[0])
+    dy=abs(p[1]-q[1])
+    if dx>1 or dy>1:
+        raise ValueError(f'non neighboring points {p} and {q} in neighbor_dist')
+    if dx+dy==2:
+        return sqrt2
+    else:
+        return 1
 
 def make_straight_line(x1,y1,x2,y2):
     '''Helper function to calculate the distance between two points.
@@ -445,12 +514,12 @@ the input 'cnofig.txt' file.'''
     iodata=raster_data(*read_input())
 
 #Arguments of the __init__ of raster_data as well as contents of config.txt
-config_arguments=('density_gravity','cell_length','closed_price','open_price','wanted_cases','minimum_power','use_open_price_raster','use_no_pass_raster','reach_raster','flow_direction_raster','dem_raster','flow_accumulation_raster','print_results_raster','flowrate_raster','cost_raster','ban_raster')
+config_arguments=('density_gravity','cell_length','closed_price','open_price','wanted_cases','minimum_power','maximum_upstream_downstream_distance','losses','use_open_price_raster','use_no_pass_raster','reach_raster','flow_direction_raster','dem_raster','flow_accumulation_raster','print_results_raster','flowrate_raster','open_price_raster','ban_raster')
 
 def change_settings(**kwargs):
     '''Changes specific settings of the input 'config.txt' file.
 Designed for manual use (as opposed towrite_input_file).'''
-    remake_inp=[None]*15
+    remake_inp=[None]*20
     for i in kwargs:
         if i not in arguments:
             raise KeyError(f'nonexistent argument {i}')
@@ -499,7 +568,7 @@ subsequent neighboring points.'''
         for i in temp_check:
             for j in adj_cells(i[0],i[1],data.rows,data.cols):
                 if data.to_check[j[0],j[1]]:
-                    k=0
+                    k=0 #################################################What if k=-1?
                     if data.FlDEM_array[j[0],j[1]]<=bottom_height:
                         k=len(data.stream_pixels_list)
                     else:
@@ -528,8 +597,9 @@ def find_border(data=iodata):
                     r=int(data.min_iso[k])
                     if r>-2:
                         y.append(r)
-                for p in range(int(data.min_iso[i,j])+1,max(y)+1):
-                    data.list_iso[p].add((i,j))
+                if y:
+                    for p in range(int(data.min_iso[i,j])+1,max(y)+1):
+                        data.list_iso[p].add((i,j))
     data.reduce_list_iso()
     for i in range(len(data.list_iso)):
         data.list_iso[i].add(data.stream_pixels_list[i][1:3])
@@ -654,10 +724,10 @@ def calculate_open_distance(data=iodata):
                 main_path.append(j)
                 if contour[j][0]==checking[0] or contour[j][1]==checking[1]:
                     ones_len+=1
-                    ones_cost+=data.cost_array[contour[j]]
+                    ones_cost+=data.open_price_array[contour[j]]
                 else:
                     rt2s_len+=1
-                    rt2s_cost+=data.cost_array[contour[j]]
+                    rt2s_cost+=data.open_price_array[contour[j]]
                 total_len[j]=data.cell_length*(ones_len+sqrt2*rt2s_len)
                 total_cost[j]=data.cell_length*(ones_cost+sqrt2*rt2s_cost)
                 done.add(old_j)
@@ -682,10 +752,10 @@ def calculate_open_distance(data=iodata):
                             temp_path.append(j)
                             if contour[j][0]==checking[0] or contour[j][1]==checking[1]:
                                 temp_ones_len+=1
-                                temp_ones_cost+=data.cost_array[contour[j]]
+                                temp_ones_cost+=data.open_price_array[contour[j]]
                             else:
                                 temp_rt2s_len+=1
-                                temp_rt2s_cost+=data.cost_array[contour[j]]
+                                temp_rt2s_cost+=data.open_price_array[contour[j]]
                             if j<=old_j:
                                 break
                         dist_inc=total_len[j]+data.cell_length*(temp_ones_len+sqrt2*temp_rt2s_len)
@@ -705,10 +775,10 @@ def calculate_open_distance(data=iodata):
                             temp_path.append(j)
                             if contour[j][0]==checking[0] or contour[j][1]==checking[1]:
                                 temp_ones_len+=1
-                                temp_ones_cost+=data.cost_array[contour[j]]
+                                temp_ones_cost+=data.open_price_array[contour[j]]
                             else:
                                 temp_rt2s_len+=1
-                                temp_rt2s_cost+=data.cost_array[contour[j]]
+                                temp_rt2s_cost+=data.open_price_array[contour[j]]
                             if j>=old_j:
                                 break
                         dist_dec=total_len[j]+data.cell_length*(temp_ones_len+sqrt2*temp_rt2s_len)
@@ -757,7 +827,7 @@ def calculate_open_prices(data=iodata):
 
 def estimate_best_prices(data=iodata):
     cl=data.cell_length
-    wc=2*data.wanted_cases
+    losses=data.losses
     if data.run_parts[5]:
         raise RuntimeError('The prices have already been estimated for these data.')
     data.mark_part_as_run(5)
@@ -767,10 +837,12 @@ def estimate_best_prices(data=iodata):
     closed_price=data.closed_price
     ban_set=data.ban_set
     for i in range(len(data.stream_list)):
-        if i in data.problems:
-            continue
         if not i%10:
             logprint(f'Finished iteration {i} of the estimate_best_prices step.\nIt took {time.time()-start} seconds.')
+            data.partition_price_list()
+        on_stream_len=0
+        if i in data.problems:
+            continue
         high_row=data.stream_list[i][0]
         high_col=data.stream_list[i][1]
         if (high_row,high_col) in ban_set:
@@ -779,19 +851,24 @@ def estimate_best_prices(data=iodata):
         temp_rightisos=data.rightisos[i]
         temp_left_all_costs_open_list=data.left_all_costs_open_list[i]
         temp_right_all_costs_open_list=data.right_all_costs_open_list[i]
+        temp_left_total_len_list=data.left_total_len_list[i]
+        temp_right_total_len_list=data.right_total_len_list[i]
         up_height=round(data.stream_pixels_list[i][-1])
         flowrate=data.flowrate_array[high_row,high_col]
         for j in range(i+1,len(data.stream_list)):
+            on_stream_len+=data.cell_length*neighbor_dist(data.stream_list[j-1],data.stream_list[j])
             stream_row=data.stream_list[j][0]
             stream_col=data.stream_list[j][1]
+            height_dif=up_height-round(data.stream_pixels_list[j][-1])
+            stream_dist=cl*distances[abs(stream_row-high_row),abs(stream_col-high_col),height_dif]
+            if on_stream_len>data.maximum_distance and data.maximum_distance>0:
+                break
             if (stream_row,stream_col) in ban_set:
                 continue
-            height_dif=up_height-round(data.stream_pixels_list[j][-1])
             power=height_dif*flowrate
-            if power<data.minimum_power:
+            if power<data.minimum_power or data.minimum_power==-1:
                 continue
-            closed_i_j_cost=closed_price*cl*distances[abs(stream_row-high_row),abs(stream_col-high_col),height_dif]
-            cost_min=99999
+            closed_i_j_cost=closed_price*stream_dist
             left_price_list=[]
             for k in range(len(temp_leftisos)):
                 point_row=temp_leftisos[k][0]
@@ -801,11 +878,11 @@ def estimate_best_prices(data=iodata):
                 open_cost=temp_left_all_costs_open_list[k]
                 closed_len=cl*distances[abs(stream_row-point_row),abs(stream_col-point_col),height_dif]
                 cost_temp=open_cost+closed_price*closed_len
-                left_price_list.append((cost_temp/power,cost_temp,float(open_cost),closed_price*closed_len,i,j,k,0,high_row,high_col,stream_row,stream_col,point_row,point_col,(),0,0))
+                adj_power=power*losses**(cl*temp_left_total_len_list[k])
+                left_price_list.append((cost_temp/adj_power,cost_temp,float(open_cost),closed_price*closed_len,i,j,k,0,high_row,high_col,stream_row,stream_col,point_row,point_col,(),0,0))
                 if open_cost>closed_i_j_cost:
                     break
             data.price_list.extend(left_price_list)
-            cost_min=99999
             right_price_list=[]
             for k in range(len(temp_rightisos)):
                 point_row=temp_rightisos[k][0]
@@ -815,160 +892,30 @@ def estimate_best_prices(data=iodata):
                 open_cost=temp_right_all_costs_open_list[k]
                 closed_len=cl*distances[abs(stream_row-point_row),abs(stream_col-point_col),height_dif]
                 cost_temp=open_cost+closed_price*closed_len
-                right_price_list.append((cost_temp/power,cost_temp,float(open_cost),closed_price*closed_len,i,j,k,1,high_row,high_col,stream_row,stream_col,point_row,point_col,(),0,0))
+                adj_power=power*losses**(cl*temp_right_total_len_list[k])
+                right_price_list.append((cost_temp/adj_power,cost_temp,float(open_cost),closed_price*closed_len,i,j,k,1,high_row,high_col,stream_row,stream_col,point_row,point_col,(),0,0))
                 if open_cost>closed_i_j_cost:
                     break
             data.price_list.extend(right_price_list)
-        if not i%10:
-            data.sort_price_list()
-        data.short_price_list()
+    data.partition_price_list()
     data.sort_price_list()
-    data.short_price_list()
     end=time.time()
     logprint('Time to estimate the prices (step 6):',end-start)
-
-def calculate_closed_path(x0,y0,x1,y1,x2,y2,open_path_cost=0,acc=1,data=iodata):
-    '''Calculates the ideal closed path.
-    Returns the path itself, as well as the construction cost per height difference.
-    (x0,y0),(x1,y1),(x2,y2) are the upstream, downstream and contour points respectively.
-    open_path_cost is the cost of the open path between the upstream and contour points.
-    acc is the number of pixels that the pathfinder is allowed to skip.'''
-    z0=data.FlDEM_array[x0,y0]
-    z1=data.FlDEM_array[x1,y1]
-    z2=data.FlDEM_array[x2,y2]
-    path=[(x1,y1)]
-    banned=set()
-    do=400
-    while (x1,y1)!=(x2,y2) and do:
-        (x1,y1)=make_move(x1,y1,x2,y2,banned,acc,data)
-        while (x1,y1) in path:
-            ind=path.index((x1,y1))
-            (x1,y1)=path[ind-1]
-            banned.update(path[ind+1:])
-            path=path[:ind]
-            (x1,y1)=make_move(x1,y1,x2,y2,banned,acc,data)
-        path.append((x1,y1))
-        do-=1
-    if do==0:
-        logprint(f'Current path: {path}')
-        raise RuntimeWarning('loop ran for too long (more than 400 iterations)')
-    closed_cost=closed_path_cost(path,data)
-    return path,closed_cost,(closed_cost+open_path_cost)/abs(z1-z0)
-
-def dist_calc(x1,y1,x2,y2,data=iodata):
-    '''Finds the height of two points in the relevant raster and returns their distance.
-    (x1,y1) and (x2,y2) are the points.'''
-    z1=data.FlDEM_array[x1,y1]
-    z2=data.FlDEM_array[x2,y2]
-    return data.distances[abs(x1-x2)][abs(y1-y2)][abs(round(z1-z2))]
-
-def make_move(x1,y1,x2,y2,banned_cells,acc=1,data=iodata):
-    '''Finds all potential next steps of the path and returns the best one.
-    (x1,y1) and (x2,y2) are the current point and the target.
-    banned_cells are the cells that the path is not allowed to visit again
-     due to local minima.
-    acc is the number of pixels that the pathfinder is allowed to skip.'''
-    potential_steps=set()
-    if acc==1:
-        potential_steps.update(adj_cells(x1,y1,data.rows,data.cols))
-    else:
-        for i in range(-acc,acc+1):
-            for j in range(-acc,acc+1):
-                if (i,j)!=(0,0):
-                    potential_steps.add((x1+i,y1+j))
-    potential_steps-=banned_cells
-    return min(potential_steps,key=lambda c1:dist_calc(*c1,x2,y2,data))
-
-def closed_path_cost(p,data=iodata):
-    '''Calculates the length of the closed path based on the lengths of the individual segmants.
-    Returns the total price of the closed pipe (length*unit_price).
-    p is the list with the points of the path.'''
-    ret=0
-    for i in range(len(p)-1):
-        dx=abs(p[i][0]-p[i+1][0])
-        dy=abs(p[i][1]-p[i+1][1])
-        dz=abs(round(data.FlDEM_array[p[i]]-data.FlDEM_array[p[i+1]]))
-        ret+=data.distances[dx][dy][dz]
-    return ret*data.cell_length*data.closed_price
-
-def path_from_price_list(quality_number=0,acc=1,data=iodata):
-    '''Extention of the calculate_closed_path function;
-    Calculates the ideal closed path.
-    quality_number is the index of the (upstream, downstream, contour) triple in price_list.
-    acc is the number of pixels that the pathfinder is allowed to skip.'''
-    c=data.price_list[quality_number]
-    ret=calculate_closed_path(c[8],c[9],c[10],c[11],c[12],c[13],c[2],acc,data)
-    path=ret[0]
-    if data.ban_set&set(path):
-        if acc==1:
-            data.update_price_list(quality_number,(),-1,-1)
-        raise RuntimeError('this path cannot be used due to a banned pixel')
-    if acc==1:
-        data.update_price_list(quality_number,*ret)
-    return ret
-
-def find_best_value(ratio,acc=1,data=iodata):
-    '''Finds the best (upstream, downstream, contour) triple in terms of cost divided by height difference.
-    The calculation stops after ratio*best_solution_so_far iterations.
-    Returns the price per height of the found solution, the index of the solution in price_list
-    and the number of triples checked.'''
-    i=0
-    while True:
-        try:
-            prc=path_from_price_list(i,acc,data)[1]
-            break
-        except:
-            i+=1
-    qlt=i
-    for i in range(100):
-        try:
-            cur=path_from_price_list(i,acc,data)[1]
-        except:
-            pass
-        if cur<prc:
-            prc=cur
-            qlt=i
-    i=100
-    while i<ratio*qlt:
-        try:
-            cur=path_from_price_list(i,acc,data)[1]
-        except:
-            pass
-        if cur<prc:
-            prc=cur
-            qlt=i
-        i+=1
-    return prc,qlt,i
 
 def calculate_good_values(data=iodata):
     '''Finds the best (upstream, downstream, contour) triple in terms of cost divided by height difference.
     The calculation stops at data.wanted_cases iterations.
     Returns the price per height of the found solution and the index of the solution in price_list.'''
     start=time.time()
-    lpl=len(data.price_list)
-    no=min(lpl,2*data.wanted_cases)
-    i=0
-    while True:
+    for quality_number,solution in enumerate(data.price_list):
+        downstream=solution[10],solution[11]
+        contour=solution[12],solution[13]
         try:
-            prc=path_from_price_list(i,1,data)[1]
-            break
-        except RuntimeError:
-            i+=1
-    #qlt=i
-    j=0
-    logprint(f'Finished iteration {i} of the calculate_good_values step.\nIt took {time.time()-start} seconds.')
-    while j<no and i<lpl-1:
-        if not i%1000:
-            logprint(f'Finished iteration {i} of the calculate_good_values step.\nIt took {time.time()-start} seconds.')
-        i+=1
-        try:
-            cur=path_from_price_list(i,1,data)[1]
-            j+=1
-        except RuntimeError:
-            continue
-        #if cur<prc:
-            #prc=cur
-            #qlt=i
+            path=dijkstar.find_path(data.graph,contour,downstream)
+            ret=path.nodes,path.total_cost,(path.total_cost+solution[2])/abs(data.FlDEM_array[downstream]-data.FlDEM_array[contour])
+            data.update_price_list(quality_number,*ret)
+        except dijkstar.algorithm.NoPathError:
+            data.update_price_list(quality_number,(),-1,-1)
     data.sort_accurate_price_list()
     end=time.time()
     logprint('Time to calculate the exact closed prices for the wanted cases (step 7):',end-start)

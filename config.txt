@@ -1,22 +1,32 @@
 density_gravity:9.8
-cell_length:
-closed_price:
-open_price:
-wanted_cases:
-minimum_power:
-use_open_price_raster:
-use_no_pass_raster:
-reach_raster:
-flow_direction_raster:
-dem_raster:
-flow_accumulation_raster:
-print_results_raster:
-flowrate_raster:
-cost_raster:
-ban_raster:
+cell_length:5
+open_price:1
+closed_price:2
+wanted_cases:10000
+minimum_power:10
+maximum_upstream_downstream_distance:-1
+losses:0
+use_open_price_raster:1
+use_closed_price_raster:0
+use_no_pass_raster:1
+reach_raster:stream_reach4
+flow_direction_raster:Flow_Direction
+dem_raster:Fill_DEM
+flow_accumulation_raster:Flow_accumulation
+print_results_raster:steam_reach4_results
+flowrate_raster:flowrate
+open_price_raster:cost_fin
+closed_price_raster:closed_cost
+ban_raster:no_pass
 END
 
-"""In use_open_price_raster, use 0 for False or 1 for True
-If use_open_price_raster is set to 1, the open_price setting is irrelevant
-If use_open_price_raster is set to 0, the cost_raster setting is irrelevant
-If use_no_pass_raster is set to 0, the ban_raster setting is irrelevant"""
+"""
+    If use_open_price_raster is set to 0, the open_price_raster setting is irrelevant
+    If use_open_price_raster is set to 1, the open_price setting is irrelevant
+    If use_closed_price_raster is set to 0, the closed_price_raster setting is irrelevant
+    If use_closed_price_raster is set to 1, the closed_price setting is still used in Step 6 (estimation of penstock price)
+    Set closed_price equal to -1 in order to use the average of closed_price_raster as closed_price
+    If use_no_pass_raster is set to 0, the ban_raster setting is irrelevant
+    If maximum_upstream_downstream_distance is set to -1, ignore this setting
+    Losses is a number from 0 to 1. It refers to the energy loss per meter of headrace.
+"""
