@@ -912,7 +912,7 @@ def calculate_good_values(data=iodata):
         contour=solution[12],solution[13]
         try:
             path=dijkstar.find_path(data.graph,contour,downstream)
-            ret=path.nodes,path.total_cost,(path.total_cost+solution[2])/abs(data.FlDEM_array[downstream]-data.FlDEM_array[contour])
+            ret=path.nodes,path.total_cost,(path.total_cost+solution[2])*solution[0]/solution[1]
             data.update_price_list(quality_number,*ret)
         except dijkstar.algorithm.NoPathError:
             data.update_price_list(quality_number,(),-1,-1)
