@@ -878,7 +878,8 @@ def estimate_best_prices(data=iodata):
                 open_cost=temp_left_all_costs_open_list[k]
                 closed_len=cl*distances[abs(stream_row-point_row),abs(stream_col-point_col),height_dif]
                 cost_temp=open_cost+closed_price*closed_len
-                adj_power=power*losses**(cl*temp_left_total_len_list[k])
+                adj_height=max(0.01,height_dif-losses*temp_left_total_len_list[k]*cl)
+                adj_power=adj_height*flowrate
                 left_price_list.append((cost_temp/adj_power,cost_temp,float(open_cost),closed_price*closed_len,i,j,k,0,high_row,high_col,stream_row,stream_col,point_row,point_col,(),0,0))
                 if open_cost>closed_i_j_cost:
                     break
@@ -892,7 +893,8 @@ def estimate_best_prices(data=iodata):
                 open_cost=temp_right_all_costs_open_list[k]
                 closed_len=cl*distances[abs(stream_row-point_row),abs(stream_col-point_col),height_dif]
                 cost_temp=open_cost+closed_price*closed_len
-                adj_power=power*losses**(cl*temp_right_total_len_list[k])
+                adj_height=max(0.01,height_dif-losses*temp_left_total_len_list[k]*cl)
+                adj_power=adj_height*flowrate
                 right_price_list.append((cost_temp/adj_power,cost_temp,float(open_cost),closed_price*closed_len,i,j,k,1,high_row,high_col,stream_row,stream_col,point_row,point_col,(),0,0))
                 if open_cost>closed_i_j_cost:
                     break
