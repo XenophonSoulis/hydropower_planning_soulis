@@ -37,6 +37,7 @@ Useful if the file is missing or corrupted.'''
         config.write('open_price:1\n')
         config.write('closed_price:2\n')
         config.write('wanted_cases:10000\n')
+        config.write('check_factor:2\n')
         config.write('minimum_power:10\n')
         config.write('maximum_upstream_downstream_distance:-1\n') #in metres, -1 to turn off
         config.write('losses:0\n') #0-100, percentage loss per metre of open
@@ -84,21 +85,22 @@ Accepts up to 15 inputs.'''
         config.write(f'open_price:{inputs[2]}\n')
         config.write(f'closed_price:{inputs[3]}\n')
         config.write(f'wanted_cases:{inputs[4]}\n')
-        config.write(f'minimum_power:{inputs[5]}\n')
-        config.write(f'maximum_upstream_downstream_distance:{int(inputs[6])}\n')
-        config.write(f'losses:{int(inputs[7])}\n')
-        config.write(f'use_open_price_raster:{int(inputs[8])}\n')
-        config.write(f'use_closed_price_raster:{int(inputs[9])}\n')
-        config.write(f'use_no_pass_raster:{int(inputs[10])}\n')
-        config.write(f'reach_raster:{inputs[11]}\n')
-        config.write(f'flow_direction_raster:{inputs[12]}\n')
-        config.write(f'dem_raster:{inputs[13]}\n')
-        config.write(f'flow_accumulation_raster:{inputs[14]}\n')
-        config.write(f'print_results_raster:{inputs[15]}\n')
-        config.write(f'flowrate_raster:{inputs[16]}\n')
-        config.write(f'open_price_raster:{inputs[17]}\n')
-        config.write(f'closed_price_raster:{inputs[18]}\n')
-        config.write(f'ban_raster:{inputs[19]}\n')
+        config.write(f'check_factor:{inputs[5]}\n')
+        config.write(f'minimum_power:{inputs[6]}\n')
+        config.write(f'maximum_upstream_downstream_distance:{int(inputs[7])}\n')
+        config.write(f'losses:{int(inputs[8])}\n')
+        config.write(f'use_open_price_raster:{int(inputs[9])}\n')
+        config.write(f'use_closed_price_raster:{int(inputs[10])}\n')
+        config.write(f'use_no_pass_raster:{int(inputs[11])}\n')
+        config.write(f'reach_raster:{inputs[12]}\n')
+        config.write(f'flow_direction_raster:{inputs[13]}\n')
+        config.write(f'dem_raster:{inputs[14]}\n')
+        config.write(f'flow_accumulation_raster:{inputs[15]}\n')
+        config.write(f'print_results_raster:{inputs[16]}\n')
+        config.write(f'flowrate_raster:{inputs[17]}\n')
+        config.write(f'open_price_raster:{inputs[18]}\n')
+        config.write(f'closed_price_raster:{inputs[19]}\n')
+        config.write(f'ban_raster:{inputs[20]}\n')
         config.write('END\n\n')
         config.write('"""\n')
         config.write('    If use_open_price_raster is set to 0, the open_price_raster setting is irrelevant\n')
@@ -125,7 +127,7 @@ def read_input():
         float_read_config=lambda:float(config.readline()[:-1].split(sep=':')[1])
         bool_read_config=lambda:bool(int(config.readline()[:-1].split(sep=':')[1]))
         str_read_config=lambda:config.readline()[:-1].split(sep=':')[1]
-        return float_read_config(),float_read_config(),float_read_config(),float_read_config(),int_read_config(),float_read_config(),int_read_config(),float_read_config(),bool_read_config(),bool_read_config(),bool_read_config(),str_read_config(),str_read_config(),str_read_config(),str_read_config(),str_read_config(),str_read_config(),str_read_config(),str_read_config(),str_read_config()
+        return float_read_config(),float_read_config(),float_read_config(),float_read_config(),int_read_config(),int_read_config(),float_read_config(),int_read_config(),float_read_config(),bool_read_config(),bool_read_config(),bool_read_config(),str_read_config(),str_read_config(),str_read_config(),str_read_config(),str_read_config(),str_read_config(),str_read_config(),str_read_config(),str_read_config()
 
 #Only used for reference. These are the values in each element of price_list.
 price_list_key=['cost per height','total cost','cost of open duct','cost of closed pipe','upstream point index in stream_pixels_list','downstream point index in stream_pixels_list','contour point in the relevant contour','left/right identifier','x coordinate of upstream point','y coordinate of upstream point','x coordinate of downstream point','y coordinate of downstream point','x coordinate of contour point','y coordinate of contour point','final_price']
@@ -136,12 +138,13 @@ A raster_data object called iodata is created by default
 with values imported from 'config.txt'.
 The arguments are the entries of 'config.txt'
 in the same order that they are there.'''
-    def __init__(self,density_gravity,cell_length,open_price,closed_price,wanted_cases,minimum_power,maximum_distance,losses,use_open_price_raster,use_closed_price_raster,use_no_pass_raster,reach_raster,fldir_raster,dem_raster,flacc_raster,results_raster,flowrate_raster,open_price_raster,closed_price_raster,ban_raster):
+    def __init__(self,density_gravity,cell_length,open_price,closed_price,wanted_cases,check_factor,minimum_power,maximum_distance,losses,use_open_price_raster,use_closed_price_raster,use_no_pass_raster,reach_raster,fldir_raster,dem_raster,flacc_raster,results_raster,flowrate_raster,open_price_raster,closed_price_raster,ban_raster):
         self.density_gravity=density_gravity
         self.cell_length=cell_length
         self.open_price=open_price
         self.closed_price=closed_price
         self.wanted_cases=wanted_cases
+        self.check_factor=check_factor
         self.minimum_power=minimum_power
         self.maximum_distance=maximum_distance
         self.losses=(100-losses)/100
@@ -321,24 +324,29 @@ on step 6, when speed matters the most.'''
         self.price_list.sort()
     def short_price_list(self):
         '''Shortens the price_list to avoid eating up too much RAM.'''
-        self.price_list=self.price_list[:2*self.wanted_cases]
+        self.price_list=self.price_list[:self.check_factor*self.wanted_cases]
     def partition_price_list(self):
-        self.price_list=heapq.nsmallest(2*self.wanted_cases, self.price_list)
+        self.price_list=heapq.nsmallest(self.check_factor*self.wanted_cases, self.price_list)
     def sort_accurate_price_list(self):
-        '''Sorts the first 2*self.wanted_cases elements of the price_list
+        '''Sorts the first self.check_factor*self.wanted_cases elements of the price_list
 into a new accurate_price_list based on the traced closed pipe.'''
-        no=min(len(self.price_list),2*self.wanted_cases)
+        no=min(len(self.price_list),self.check_factor*self.wanted_cases)
         self.accurate_price_list=[]
         if self.price_list[0][-1]>0:
             self.accurate_price_list.append(self.price_list[0])
         i=0
-        while len(self.accurate_price_list)<2*self.wanted_cases and i<len(self.price_list)-1:
+        while len(self.accurate_price_list)<self.check_factor*self.wanted_cases and i<len(self.price_list)-1:
             i+=1
             if self.price_list[i][-1]>0 and self.price_list[i][:7]!=self.price_list[i-1][:7]:
                 self.accurate_price_list.append(self.price_list[i])
             else:
                 continue
         self.accurate_price_list.sort(key=lambda x:x[-1])
+        if self.accurate_price_list[self.wanted_cases-1][-1]>self.accurate_price_list[self.check_factor*self.wanted_cases-1][0]:
+            for i in range(self.wanted_cases):
+                if self.accurate_price_list[i]>self.accurate_price_list[self.check_factor*self.wanted_cases-1][0]:
+                    break
+            print(f'There may be ideal solutions beyond the {} solution.Consider running the algorithm with a higher check_factor (currently {self.check_factor})')
     def list_iso_to_list(self):
         '''Unused'''
         ret=[]
