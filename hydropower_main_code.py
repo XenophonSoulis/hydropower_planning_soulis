@@ -88,7 +88,7 @@ Accepts up to 15 inputs.'''
         config.write(f'check_factor:{inputs[5]}\n')
         config.write(f'minimum_power:{inputs[6]}\n')
         config.write(f'maximum_upstream_downstream_distance:{int(inputs[7])}\n')
-        config.write(f'losses:{int(inputs[8])}\n')
+        config.write(f'losses:{inputs[8]}\n')
         config.write(f'use_open_price_raster:{int(inputs[9])}\n')
         config.write(f'use_closed_price_raster:{int(inputs[10])}\n')
         config.write(f'use_no_pass_raster:{int(inputs[11])}\n')
@@ -147,7 +147,7 @@ in the same order that they are there.'''
         self.check_factor=check_factor
         self.minimum_power=minimum_power
         self.maximum_distance=maximum_distance
-        self.losses=(100-losses)/100
+        self.losses=losses
         self.use_open_price_raster=use_open_price_raster
         self.use_closed_price_raster=use_closed_price_raster
         self.use_no_pass_raster=use_no_pass_raster
