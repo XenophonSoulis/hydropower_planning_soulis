@@ -342,11 +342,14 @@ into a new accurate_price_list based on the traced closed pipe.'''
             else:
                 continue
         self.accurate_price_list.sort(key=lambda x:x[-1])
-        if self.accurate_price_list[self.wanted_cases-1][-1]>self.accurate_price_list[self.check_factor*self.wanted_cases-1][0]:
-            for i in range(self.wanted_cases):
-                if self.accurate_price_list[i]>self.accurate_price_list[self.check_factor*self.wanted_cases-1][0]:
-                    break
-            print(f'There may be ideal solutions beyond the {} solution.Consider running the algorithm with a higher check_factor (currently {self.check_factor})')
+        if len(self.accurate_price_list)>=self.wanted_cases:
+            if self.accurate_price_list[self.wanted_cases-1][-1]>self.price_list[-1][0]:
+                for i in range(self.wanted_cases):
+                    if self.accurate_price_list[i][-1]>self.price_list[-1][0]:
+                        break
+                logprint(f'There may be ideal solutions beyond the {i} solution.Consider running the algorithm with a higher check_factor (currently {self.check_factor})')
+        else:
+            logprint(f'There are only {len(self.accurate_price_list)} accepted solutions with wanted_cases = {self.wanted_cases} and check_factor = {self.check_factor}')
     def list_iso_to_list(self):
         '''Unused'''
         ret=[]
@@ -355,7 +358,7 @@ into a new accurate_price_list based on the traced closed pipe.'''
         return ret
     def update_price_list(self,quality_number,path_list,new_cost,new_val):
         '''Adds details of the traced closed pipe to a price_list entry.'''
-        self.price_list[quality_number]=(*self.price_list[quality_number][:-3],tuple(path_list),new_cost,new_val*self.density_gravity)
+        self.price_list[quality_number]=(*self.price_list[quality_number][:-3],tuple(path_list),new_cost,new_val)
     def raster_edges(self):
         '''Saves the edges of the rasters in an easier form.
 M for Maximum, m for minimum.'''
