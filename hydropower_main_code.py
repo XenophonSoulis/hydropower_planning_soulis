@@ -62,7 +62,7 @@ Useful if the file is missing or corrupted.'''
         config.write('    Set closed_price equal to -1 in order to use the average of closed_price_raster as closed_price\n')
         config.write('    If use_no_pass_raster is set to 0, the ban_raster setting is irrelevant\n')
         config.write('    If maximum_upstream_downstream_distance is set to -1, ignore this setting\n')
-        config.write('    Losses is a number from 0 to 1. It refers to the energy loss per meter of headrace.\n')
+        config.write('    Losses is the slope of the headrace.\n')
         config.write('"""\n')
 def write_input_file(*inputs):
     '''Edits the input 'config.txt file to the provided values,
@@ -110,11 +110,11 @@ Accepts up to 15 inputs.'''
         config.write('    Set closed_price equal to -1 in order to use the average of closed_price_raster as closed_price\n')
         config.write('    If use_no_pass_raster is set to 0, the ban_raster setting is irrelevant\n')
         config.write('    If maximum_upstream_downstream_distance is set to -1, ignore this setting\n')
-        config.write('    Losses is a number from 0 to 100. It refers to the energy loss per meter of penstock.\n')
+        config.write('    Losses is the slope of the headrace.\n')
         config.write('"""\n')
 
 #Uncomment the line below to reset the input file in case it is missing or corrupted:
-reset_input_file()
+#reset_input_file()
 
 def read_input():
     '''Reads the input 'config.txt' file'''
@@ -332,7 +332,7 @@ on step 6, when speed matters the most.'''
 into a new accurate_price_list based on the traced closed pipe.'''
         no=min(len(self.price_list),self.check_factor*self.wanted_cases)
         self.accurate_price_list=[]
-        if self.price_list[0][-1]>0:
+        if len(self.price_list)>0 and self.price_list[0][-1]>0:
             self.accurate_price_list.append(self.price_list[0])
         i=0
         while len(self.accurate_price_list)<self.check_factor*self.wanted_cases and i<len(self.price_list)-1:
@@ -889,7 +889,9 @@ def estimate_best_prices(data=iodata):
                 open_cost=temp_left_all_costs_open_list[k]
                 closed_len=cl*distances[abs(stream_row-point_row),abs(stream_col-point_col),height_dif]
                 cost_temp=open_cost+closed_price*closed_len
-                adj_height=max(0.01,height_dif-losses*temp_left_total_len_list[k]*cl)
+                adj_height=max(0,height_dif-losses*temp_left_total_len_list[k]*cl)
+                if adj_height==0:
+                    continue
                 adj_power=adj_height*flowrate
                 left_price_list.append((cost_temp/adj_power,cost_temp,float(open_cost),closed_price*closed_len,i,j,k,0,high_row,high_col,stream_row,stream_col,point_row,point_col,(),0,0))
                 if open_cost>closed_i_j_cost:
@@ -904,7 +906,9 @@ def estimate_best_prices(data=iodata):
                 open_cost=temp_right_all_costs_open_list[k]
                 closed_len=cl*distances[abs(stream_row-point_row),abs(stream_col-point_col),height_dif]
                 cost_temp=open_cost+closed_price*closed_len
-                adj_height=max(0.01,height_dif-losses*temp_left_total_len_list[k]*cl)
+                adj_height=max(0,height_dif-losses*temp_right_total_len_list[k]*cl)
+                if adj_height==0:
+                    continue
                 adj_power=adj_height*flowrate
                 right_price_list.append((cost_temp/adj_power,cost_temp,float(open_cost),closed_price*closed_len,i,j,k,1,high_row,high_col,stream_row,stream_col,point_row,point_col,(),0,0))
                 if open_cost>closed_i_j_cost:
